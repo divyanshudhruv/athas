@@ -253,7 +253,7 @@ impl RenderOnce for Dialog {
 /// the focus by keyboard without the halo a 3px ring made.
 pub fn focus_ring(focused: bool, cx: &App) -> gpui::Div {
     let ring = cx.theme().colors.focus_ring;
-    div().flex_none().rounded_full().when(focused, |this| {
+    div().flex_none().rounded(crate::metrics::radius_md()).when(focused, |this| {
         this.shadow(vec![BoxShadow {
             color: ring,
             offset: point(px(0.), px(0.)),
@@ -304,6 +304,7 @@ pub struct AlertDialog {
     destructive_media: bool,
     actions: Vec<AlertAction>,
     focused: usize,
+    keyboard_focus: bool,
 }
 
 impl EventEmitter<DismissEvent> for AlertDialog {}
@@ -338,6 +339,7 @@ impl AlertDialog {
             destructive_media: false,
             actions: Vec::new(),
             focused: 0,
+            keyboard_focus: false,
         }
     }
 
@@ -449,6 +451,9 @@ impl AlertDialog {
             "left" => self.focused = (self.focused + count - 1) % count,
             _ => return,
         }
+        if matches!(event.keystroke.key.as_str(), "tab" | "right" | "left") {
+            self.keyboard_focus = true;
+        }
         cx.stop_propagation();
         cx.notify();
     }
@@ -464,7 +469,7 @@ impl Render for AlertDialog {
             .iter()
             .enumerate()
             .map(|(index, action)| {
-                focus_ring(index == self.focused, cx)
+                focus_ring(index == self.focused && self.keyboard_focus, cx)
                     .child(Button::new(("alert-action", index), action.label.clone()).variant(action.variant).on_click(
                         cx.listener(move |this, _: &ClickEvent, window, cx| this.press(index, window, cx)),
                     ))
